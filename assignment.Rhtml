@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+  <title>Practical Machine Learning, march 2015</title>
+  </head>
+  <FONT face="verdana", size=2.5>
+  <body>
+  <h2> Practical Machine Learning </h2>
+  <p> This exercise concerns exercise data from accelerometers on the belt, forearm, arm, and dumbell of six participants. They were asked to perform barbell lifts correctly and incorrectly in five different ways (<a href="http://groupware.les.inf.puc-rio.br/har">see data here</a>). The goal here is to predict the manner in which the exercise was performed, i.e. to predict the "classe" variable.<p>
+  
+ <h3>Load data</h3>
+
+<!--begin.rcode, include=FALSE
+ setwd("/users/malene/Dropbox/Uddannelse/Aarhus Universitet/PhD Projekt/08 Kurser/Coursera/Practical Machine Learning - Johns Hopkins University/Assignment")
+end.rcode-->
+
+<!--begin.rcode
+
+library(caret)
+library(doMC)
+
+test <- read.csv("pml-testing.csv", header=T)
+train <- read.csv("pml-training.csv", header=T)
+end.rcode-->
+ 
+<p>To find out which if any of the variables used for prediction has near zero variance, I use the nearZeroVar function. I remove these columns from the set of predictors as they may cause problems when resampling. Many of the predictors contain almost all missing values. I remove these columns as well. Furthermore there is an ID variable called X in the data set, which is completely correlated with the classe variable (see plot below). I therefore remove this as well.<p>
+ 
+<!--begin.rcode, fig.width=10, fig.height=5
+
+# remove variables with near zero variance
+nearZeroVars <- nearZeroVar(train)
+train <- train[,-nearZeroVars]
+
+# get number of NA rows in each column
+na.cols <- apply(train,2,function(x) length(x[is.na(x)]))
+data.frame(na.cols)
+
+# many of the variables have 19216 NA values out of a total of 19622 values; I remove these columns
+train <- train[,-which(na.cols==19216)]
+
+# remove index variable
+qplot(X,classe,data=train)
+train$X <- NULL
+
+# look at the training data set
+str(train)
+
+end.rcode-->
+
+<p>The default resampling method is the bootstrap for training the model, but I will use 10-fold cross validation with five replicates. This means that I split the data set into 10 parts, and leave one part out of the training procedure and test on this. I continue until all 10 parts have been left out. This is repeated five times. I set this with the trainControl function. I chose to fit a model using linear discriminant analysis (lda).<p>
+
+<!--begin.rcode, cache=TRUE
+
+# fit models using five replicates of 10-fold cross validation
+ctrl <- trainControl(method="repeatedcv", repeats=5)
+lda.fit <- train(classe ~ ., data=train, method="lda", trControl=ctrl, verbose=F)
+
+lda.fit
+
+end.rcode-->
+
+<p>The model has been fitted using 10-fold cross validation with five replicates. The out-of-sample accuracy is 0.855 meaning that the in-sample error rate is 1-0.855=0.145. The out of sample error rate is of course unknown, but I would expect it to be a little larger than 0.145.<p>
+
+<p> Note that I get a lot of warnings when fitting the model because some of my predictor variables are colinear. I don't pay much attention to the warnings in this case, since my main concern is prediction. If I was interested in making inference on my predictor variables, I would look further into this.
+
+<p>I now use the fitted model to predict the 20 observations from the test set.<p>
+<!--begin.rcode,
+pred.lda <- predict(lda.fit, test)
+pred.lda
+end.rcode-->
+
+</body>
+</html>
